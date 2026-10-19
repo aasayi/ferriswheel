@@ -3,9 +3,12 @@
  * Tidak memakai Supabase Auth dan tidak ada email. Login = username (one-name) + password (DDMMYYYY),
  * dicek oleh fungsi SQL, yang membalas token sesi. Token dikirim di setiap panggilan berikutnya.
  * Kontrak lengkap ada di ktlo-backend/README.md. Ringkasnya (semua lewat POST {url}/rest/v1/rpc/{fungsi}):
- *   login   -> ktlo_login        { p_name, p_pass }                       => { token, onename, result, ticket_no, finished_at, is_admin }
+ *   login   -> ktlo_login        { p_name, p_pass }                       => { token, onename, result, ticket_no, finished_at, is_admin,
+ *                                                                           run_id, run_state, state_age_ms, run_elapsed_ms }
  *              (result = 'win' / 'lose' kalau username ini sudah pernah menamatkan game, selain itu null;
- *               is_admin = true kalau akun ini admin)
+ *               is_admin = true kalau akun ini admin;
+ *               run_* terisi kalau ada run yang sedang berjalan dan punya snapshot: game dilanjutkan, baterai tetap berkurang selama pemain pergi)
+ *   simpan  -> ktlo_save_state   { p_token, p_run_id, p_state }           => true/false   (snapshot game, dipanggil berkala saat main)
  *   mulai   -> ktlo_start_run    { p_token }                              => { run_id }
  *   selesai -> ktlo_finish_run   { p_token, p_run_id, p_result, p_stats } => { ticket_no, status, onename }
  *   papan   -> ktlo_leaderboard  { p_token }                              => [{ onename, result, elapsed_ms, finished_at }]   (HANYA admin)
@@ -53,7 +56,7 @@
 
   function fail(code, message) { var e = new Error(message); e.code = code; return e; }
 
-  async function http(path, body) {
+  async function http(path, body, keepalive) {
     var t = timeout(12000), res, text;
     try {
       res = await fetch(base + path, {
@@ -64,6 +67,7 @@
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(body || {}),
+        keepalive: !!keepalive,   // tetap terkirim walau tab ditutup
         signal: t.signal
       });
       text = await res.text();
@@ -96,6 +100,12 @@
     return { result: row.result, ticketNo: row.ticket_no || null, finishedAt: row.finished_at || null };
   }
 
+  /** Run yang masih berjalan (pemain menutup web di tengah main): snapshot terakhir + berapa lama sejak disimpan, menurut jam server. */
+  function resumeFrom(row) {
+    if (!row || !row.run_id || !row.run_state) return null;
+    return { runId: row.run_id, state: row.run_state, ageMs: Math.max(0, +row.state_age_ms || 0), elapsedMs: Math.max(0, +row.run_elapsed_ms || 0) };
+  }
+
   async function login(name, dob) {
     name = String(name || '').trim();
     dob = String(dob || '').trim();
@@ -109,7 +119,7 @@
     var row = await signIn(name, dob);
     creds = { name: name, dob: dob };
     session = { name: row.onename || name, token: row.token, demo: false, admin: row.is_admin === true };
-    return { name: session.name, demo: false, admin: session.admin, final: finalFrom(row) };
+    return { name: session.name, demo: false, admin: session.admin, final: finalFrom(row), resume: resumeFrom(row) };
   }
 
   /** Login ulang diam-diam untuk menanyakan status akhir (dipakai kalau server menolak mulai karena sudah selesai). */
@@ -123,16 +133,16 @@
 
   function logout() { session = null; creds = null; }
 
-  async function rpc(fn, args) {
+  async function rpc(fn, args, keepalive) {
     if (!session) throw fail('auth', 'Belum login.');
     args.p_token = session.token;
     try {
-      return await http('/rest/v1/rpc/' + fn, args);
+      return await http('/rest/v1/rpc/' + fn, args, keepalive);
     } catch (e) {
       if (e.code === 'session' && creds) {          // sesi habis: login ulang sekali, lalu ulangi
         session.token = (await signIn(creds.name, creds.dob)).token;
         args.p_token = session.token;
-        return await http('/rest/v1/rpc/' + fn, args);
+        return await http('/rest/v1/rpc/' + fn, args, keepalive);
       }
       if (e.code === 'session') throw fail('auth', 'Sesi habis. Silakan masuk lagi.');
       throw e;
@@ -161,6 +171,12 @@
     var r = await rpc(cfg.rpcFinish || 'ktlo_finish_run', { p_run_id: run.runId, p_result: result, p_stats: stats || {} });
     var row = Array.isArray(r) ? r[0] : r;
     return { demo: false, ticketNo: (row && row.ticket_no) || run.ticketNo, raw: row };
+  }
+
+  /** Simpan snapshot game ke server (best effort). Server mencatat jamnya sendiri, jadi waktu pemain pergi dihitung dari jam server. */
+  async function saveState(run, state, keepalive) {
+    if (!run || run.demo || !session || session.demo) return false;
+    return await rpc(cfg.rpcSave || 'ktlo_save_state', { p_run_id: run.runId, p_state: state }, keepalive);
   }
 
   /**
@@ -193,7 +209,7 @@
   root.KTLO = root.KTLO || {};
   root.KTLO.Api = {
     enabled: enabled, login: login, logout: logout, refreshFinal: refreshFinal, startRun: startRun, finishRun: finishRun,
-    leaderboard: leaderboard,
+    saveState: saveState, leaderboard: leaderboard,
     validName: validName, validDob: validDob,
     get name() { return session ? session.name : null; },
     get isAdmin() { return !!(session && session.admin); },

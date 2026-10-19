@@ -215,9 +215,10 @@ strong, b { font-weight: 400; background: linear-gradient(transparent 58%, var(-
   clip-path: inset(-30px -30px 0 -30px);          /* potong garis tepi & bayangan di sisi bawah supaya rata dengan tepi box */
 }
 .char {
+  --cs: 2.5px;   /* tebal stroke karakter. Border box dialog = 3px; drop-shadow berantai terlihat lebih tebal di sudut/lengkungan, jadi 2.5px sebanding. Mau lebih tipis? turunkan angka ini (mis. 2px) */
   display: block; height: 100%; width: auto; max-width: none; pointer-events: none;
-  /* stroke coklat (sama kayak border box), tebal ~3.5px + bayangan gelap tipis */
-  filter: drop-shadow(3.5px 0 0 var(--rim)) drop-shadow(-3.5px 0 0 var(--rim)) drop-shadow(0 -3.5px 0 var(--rim)) drop-shadow(0 3.5px 0 var(--rim)) drop-shadow(0 -2px 8px rgba(8, 10, 50, .45));
+  /* stroke coklat (sama kayak border box) + bayangan gelap tipis */
+  filter: drop-shadow(var(--cs) 0 0 var(--rim)) drop-shadow(calc(var(--cs) * -1) 0 0 var(--rim)) drop-shadow(0 calc(var(--cs) * -1) 0 var(--rim)) drop-shadow(0 var(--cs) 0 var(--rim)) drop-shadow(0 -2px 8px rgba(8, 10, 50, .45));
 }
 .dialog.in .char-wrap { animation: charIn .5s .3s cubic-bezier(.2, 1.15, .3, 1) both; }
 .dlg-box {

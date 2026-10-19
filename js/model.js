@@ -139,12 +139,43 @@
     return s.lastType;
   }
 
+  /** Ringkas keadaan game jadi objek JSON kecil (dikirim ke server supaya game bisa dilanjutkan). */
+  function snapshot(s) {
+    function r(v, d) { var k = Math.pow(10, d); return Math.round(v * k) / k; }
+    return {
+      v: 1, t: r(s.t, 1), ema: s.ema == null ? null : r(s.ema, 2),
+      bag: s.bag.slice(), last: s.lastType, solved: s.solved, relights: s.relights,
+      // per gondola: [menyala 1/0, baterai 0-1, umur penuh (dtk), jumlah relight, waktu padam terakhir]
+      g: s.g.map(function (x) { return [x.lit ? 1 : 0, r(x.b, 4), r(x.life, 2), x.relights, r(x.diedAt, 1)]; })
+    };
+  }
+
+  /** Kebalikan snapshot(). Mengembalikan null kalau datanya tidak valid. */
+  function restore(o) {
+    if (!o || o.v !== 1 || !Array.isArray(o.g) || o.g.length !== N) return null;
+    var g = [];
+    for (var i = 0; i < N; i++) {
+      var a = o.g[i];
+      if (!Array.isArray(a)) return null;
+      var b = +a[1], life = +a[2];
+      if (!isFinite(b) || !isFinite(life) || life <= 0) return null;
+      g.push({ lit: a[0] === 1, b: Math.max(0, Math.min(1, b)), life: life, relights: a[3] | 0, diedAt: isFinite(+a[4]) ? +a[4] : -1 });
+    }
+    var ema = o.ema == null ? null : +o.ema;
+    return {
+      seed: 0, rnd: mulberry32((Math.random() * 4294967296) >>> 0),
+      t: +o.t || 0, g: g, ema: ema != null && isFinite(ema) ? ema : null,
+      bag: Array.isArray(o.bag) ? o.bag.slice(0, 3) : [], solved: o.solved | 0, relights: o.relights | 0,
+      lastType: o.last || null
+    };
+  }
+
   var api = {
     N: N, TUT: TUT, DYING: DYING, DYING_START: DYING_START, BAND_REF: BAND_REF,
     mulberry32: mulberry32, shuffle: shuffle,
     create: create, setupAfterTutorial: setupAfterTutorial, tick: tick, light: light,
     reportSolve: reportSolve, litCount: litCount, allLit: allLit, allDark: allDark,
-    pickType: pickType, band: band
+    pickType: pickType, band: band, snapshot: snapshot, restore: restore
   };
 
   root.KTLO = root.KTLO || {};

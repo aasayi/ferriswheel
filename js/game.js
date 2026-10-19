@@ -49,7 +49,7 @@
 
   var S = {
     phase: 'login', token: 0, m: null, wheel: null, run: null, puzzle: null, closeCb: null, open: -1,
-    assigned: {}, puzzleLog: [], tapWait: null, t0: 0, playStart: 0, acc: 0, lastTs: 0, finish: null, seenTutorial: false
+    assigned: {}, puzzleLog: [], tapWait: null, t0: 0, playStart: 0, acc: 0, lastTs: 0, lastWall: 0, lastSave: 0, finish: null, seenTutorial: false
   };
 
   function pad(n) { return (n < 10 ? '0' : '') + n; }
@@ -111,21 +111,44 @@
     S.wheel.setBattery(i, 1, 600);
     Au.lightOn();
     UI.hud.setLit(Model.litCount(S.m), N);
-    if (Model.allLit(S.m)) win();
+    if (Model.allLit(S.m)) win(); else saveState();
+  }
+
+  /* ---------------- simpan progres (game tetap jalan di server walau web ditutup) ---------------- */
+  /* Snapshot dikirim ke server saat main dimulai, tiap lampu dinyalakan, tiap ~20 dtk (cadangan kalau pengiriman gagal),
+   * dan saat tab disembunyikan/ditutup. Waktu pemain pergi dihitung server (jam server), lalu dipakai saat login lagi:
+   * baterai tetap berkurang. Snapshot tidak perlu selalu segar karena baterai turun secara deterministik. */
+  function saveState(keepalive) {
+    if (S.phase !== 'play' || !S.m || !S.run || S.run.demo) return;
+    S.lastSave = Date.now();
+    var st = Model.snapshot(S.m);
+    st.as = S.assigned;
+    st.pl = S.puzzleLog.slice(-40);
+    st.ps = Math.round(S.playStart - S.t0);
+    Api.saveState(S.run, st, keepalive).catch(function () { /* best effort: kalau gagal, snapshot lama tetap benar karena waktu dihitung dari jam server */ });
   }
 
   /* ---------------- loop utama ---------------- */
   function loop(ts) {
-    var dt = S.lastTs ? Math.min(0.25, (ts - S.lastTs) / 1000) : 0;
-    S.lastTs = ts;
+    var raw = S.lastTs ? (ts - S.lastTs) / 1000 : 0;
+    var wall = Date.now(), gap = S.lastWall ? (wall - S.lastWall) / 1000 : 0;
+    S.lastTs = ts; S.lastWall = wall;
+    // Selisih waktu antar frame dipakai apa adanya (tidak lagi dibatasi 0.25 dtk): kalau tab disembunyikan / HP tidur,
+    // rAF berhenti, dan saat kembali seluruh waktu yang lewat (rAF atau jam dinding, mana yang lebih besar) dipotongkan dari baterai.
+    var dt = raw > 0.25 ? Math.min(Math.max(raw, gap), 86400) : Math.max(0, raw);
     if (S.phase === 'play' && S.m) {
       var ev = Model.tick(S.m, dt);
+      var away = dt > 3;
       for (var k = 0; k < ev.length; k++) {
         var i = ev[k].i;
         S.wheel.setLit(i, false);
-        Au.lightOff();
-        if (UI.modal.isOpen()) UI.toast('Lampu gondola ' + pad(i + 1) + ' padam!', 2200);
+        if (!away) {
+          Au.lightOff();
+          if (UI.modal.isOpen()) UI.toast('Lampu gondola ' + pad(i + 1) + ' padam!', 2200);
+        }
       }
+      if (away && ev.length) { Au.lightOff(); UI.toast(ev.length + ' lampu gondola padam selama kamu pergi.', 3600); }
+      if (Date.now() - S.lastSave > 20000) saveState();
       S.acc += dt;
       if (S.acc >= 0.25) {
         S.acc = 0;
@@ -294,13 +317,46 @@
     startPlay();
   }
 
-  function startPlay() {
+  function startPlay(resumed) {
     S.phase = 'play'; UI.setPhase('play');
-    S.playStart = performance.now(); S.acc = 0;
+    if (!resumed) S.playStart = performance.now();
+    S.acc = 0; S.lastSave = resumed ? Date.now() : 0;   // run baru: simpan snapshot pertama di frame pertama
     S.wheel.showBadges(true);
     UI.hud.show('full');
     UI.hud.setLit(Model.litCount(S.m), N);
-    UI.toast('Nyalakan semua 12 lampu gondola!', 3400);
+    if (!resumed) UI.toast('Nyalakan semua 12 lampu gondola!', 3400);
+  }
+
+  /* Lanjutkan run yang masih berjalan (pemain menutup web atau pindah perangkat).
+   * Selama pemain pergi baterai tetap berkurang: snapshot dari server dimajukan sebesar waktu pergi (jam server).
+   * Kalau semua lampu sudah padam, hasilnya kalah, sama seperti kalau pemain tetap membuka web. */
+  function resumeRun(rs) {
+    var m = Model.restore(rs.state);
+    if (!m) return false;
+    S.token++;
+    UI.dialog.cancel(); UI.ride.stop(); UI.hint(null);
+    UI.showScreen(null);
+    setText('titleErr', '');
+    S.run = { runId: rs.runId, ticketNo: null, demo: false };
+    S.t0 = performance.now() - rs.elapsedMs;
+    S.playStart = S.t0 + (+rs.state.ps || 0);
+    S.puzzleLog = Array.isArray(rs.state.pl) ? rs.state.pl.slice(0, 60) : [];
+    S.assigned = rs.state.as && typeof rs.state.as === 'object' ? rs.state.as : {};
+    S.seenTutorial = true;
+    S.m = m;
+    var before = Model.litCount(m);
+    Model.tick(m, rs.ageMs / 1000);
+    var died = before - Model.litCount(m);
+    // Tata letak sama seperti setelah blackout (gondola tutorial di kanan atas, yang sekarat di kiri atas): offset 0, sudut 0.
+    S.wheel.resetAll();
+    S.wheel.phi = 0;
+    S.wheel.setMode('stop');
+    S.wheel.setPower(false);
+    S.wheel.sync(m, 0);
+    startPlay(true);
+    if (Model.allDark(m)) { gameOver(); return true; }
+    UI.toast(died > 0 ? 'Selamat datang kembali! ' + died + ' lampu gondola padam selama kamu pergi.' : 'Selamat datang kembali! Baterai tetap berkurang selama kamu pergi.', 4200);
+    return true;
   }
 
   function gameOver() {
@@ -401,7 +457,8 @@
         var u = await Api.login(inName.value, inDob.value);
         UI.setName(u.name);
         paintAdmin();
-        if (u.final) showEnding(u.final); else showTitle();
+        if (u.final) showEnding(u.final);
+        else if (!(u.resume && resumeRun(u.resume))) showTitle();
       } catch (ex) {
         setText('loginErr', ex.message || 'Login gagal.');
         var card = $('loginForm'); card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake');
@@ -443,6 +500,9 @@
     sb.addEventListener('click', function () { Au.setMuted(!Au.isMuted()); paintSound(); if (!Au.isMuted()) { Au.unlock(); Au.pop(); } });
     paintSound();
     document.addEventListener('pointerdown', function () { Au.unlock(); }, { once: true });
+    // tab disembunyikan / ditutup: simpan snapshot terakhir supaya waktu pergi dihitung dari titik ini
+    document.addEventListener('visibilitychange', function () { if (document.hidden) saveState(true); });
+    window.addEventListener('pagehide', function () { saveState(true); });
 
     // Enter di field username pindah ke field password
     inName.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); inDob.focus(); } });
