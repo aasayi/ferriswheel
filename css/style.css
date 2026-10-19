@@ -210,13 +210,14 @@ strong, b { font-weight: 400; background: linear-gradient(transparent 58%, var(-
 /* Karakter jadi anak dari .dlg-box: menempel persis di tepi atas box, di kanan. Box membesar -> karakter ikut naik. */
 .char-wrap {
   position: absolute; right: 18px; bottom: calc(100% - 1px); z-index: 2; line-height: 0;
-  height: clamp(120px, 25vh, 210px); height: clamp(120px, 25dvh, 210px); aspect-ratio: 640 / 753;
+  height: clamp(100px, 20vh, 172px); height: clamp(100px, 20dvh, 172px); aspect-ratio: 640 / 753;
   transform-origin: 50% 100%;
   clip-path: inset(-30px -30px 0 -30px);          /* potong garis tepi & bayangan di sisi bawah supaya rata dengan tepi box */
 }
 .char {
   display: block; height: 100%; width: auto; max-width: none; pointer-events: none;
-  filter: drop-shadow(3px 0 0 #fff) drop-shadow(-3px 0 0 #fff) drop-shadow(0 -3px 0 #fff) drop-shadow(2px -2px 0 #fff) drop-shadow(-2px -2px 0 #fff) drop-shadow(0 -2px 10px rgba(0, 0, 40, .35));
+  /* stroke coklat (sama kayak border box), tebal ~3.5px + bayangan gelap tipis */
+  filter: drop-shadow(3.5px 0 0 var(--rim)) drop-shadow(-3.5px 0 0 var(--rim)) drop-shadow(0 -3.5px 0 var(--rim)) drop-shadow(0 3.5px 0 var(--rim)) drop-shadow(0 -2px 8px rgba(8, 10, 50, .45));
 }
 .dialog.in .char-wrap { animation: charIn .5s .3s cubic-bezier(.2, 1.15, .3, 1) both; }
 .dlg-box {
@@ -514,7 +515,7 @@ input::placeholder { color: #7b86bd; }
   .panel { padding: 14px 14px 12px; }
   .field { margin-bottom: 8px; }
   .dlg-text { font-size: 17px; }
-  .char-wrap { height: clamp(100px, 22vh, 210px); height: clamp(100px, 22dvh, 210px); }
+  .char-wrap { height: clamp(90px, 18vh, 150px); height: clamp(90px, 18dvh, 150px); }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
