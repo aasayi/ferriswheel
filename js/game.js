@@ -133,9 +133,12 @@
     var raw = S.lastTs ? (ts - S.lastTs) / 1000 : 0;
     var wall = Date.now(), gap = S.lastWall ? (wall - S.lastWall) / 1000 : 0;
     S.lastTs = ts; S.lastWall = wall;
-    // Selisih waktu antar frame dipakai apa adanya (tidak lagi dibatasi 0.25 dtk): kalau tab disembunyikan / HP tidur,
-    // rAF berhenti, dan saat kembali seluruh waktu yang lewat (rAF atau jam dinding, mana yang lebih besar) dipotongkan dari baterai.
-    var dt = raw > 0.25 ? Math.min(Math.max(raw, gap), 86400) : Math.max(0, raw);
+    // Selisih waktu antar frame dipakai apa adanya (tidak dibatasi 0.25 dtk). Kalau tab disembunyikan / HP tidur / Chrome ditutup
+    // sebentar, rAF berhenti dan jamnya (performance.now) di sebagian perangkat tidak ikut maju, tapi jam dinding (Date.now) tetap jalan.
+    // Jadi kalau jam dinding melaju lebih jauh dari jam rAF, pakai jam dinding: seluruh waktu pergi dipotongkan dari baterai.
+    var dt = Math.max(0, raw);
+    if (gap - dt > 0.5) dt = gap;
+    dt = Math.min(dt, 86400);
     if (S.phase === 'play' && S.m) {
       var ev = Model.tick(S.m, dt);
       var away = dt > 3;
@@ -147,7 +150,10 @@
           if (UI.modal.isOpen()) UI.toast('Lampu gondola ' + pad(i + 1) + ' padam!', 2200);
         }
       }
-      if (away && ev.length) { Au.lightOff(); UI.toast(ev.length + ' lampu gondola padam selama kamu pergi.', 3600); }
+      if (away) {
+        if (ev.length) Au.lightOff();
+        UI.toast(ev.length ? ev.length + ' lampu gondola padam selama kamu pergi.' : 'Baterai tetap berkurang selama kamu pergi.', 3600);
+      }
       if (Date.now() - S.lastSave > 20000) saveState();
       S.acc += dt;
       if (S.acc >= 0.25) {

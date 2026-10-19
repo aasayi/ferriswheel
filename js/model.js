@@ -15,12 +15,15 @@
   var DYING = 10;  // gondola yang masih menyala tapi baterainya sekarat (kiri atas)
   var DYING_START = 0.16;
   var DYING_LIFE = 420;
-  var BAND_REF = 38; // detik per puzzle yang dianggap "normal" (termasuk jeda tap)
+  var BAND_REF = 32; // detik per puzzle yang dianggap "normal" (termasuk jeda tap); disetel dari simulasi pemain bersama MID_LIVES di bawah
   var BAND_MAX = 1.8;
-  var LIFE_SCALE = 0.8; // skala global umur baterai (disetel dari simulasi: pemain normal ~7 menit di fase main)
+  var LIFE_SCALE = 1;   // skala global umur baterai (angka di bawah sudah dalam detik)
 
-  // Umur baterai (detik, penuh -> habis). Diacak penempatannya tiap run.
-  var BASE_LIVES = [330, 380, 430, 480, 520, 570, 620, 680, 740, 800, 880, 960];
+  // Umur baterai (detik, penuh -> habis) untuk 10 gondola biasa. Diacak penempatannya tiap run.
+  // Sengaja lebar: 3 gondola "mepet" (~2-3 menit), 4 sedang, 3 awet. Yang mepet harus dinyalakan belakangan atau dinyalakan ulang.
+  var MID_LIVES = [130, 160, 200, 250, 310, 380, 460, 550, 650, 770];
+  // Gondola tutorial dapat umur panjang supaya aman.
+  var TUT_LIVES = [560, 620, 700];
 
   function mulberry32(a) {
     return function () {
@@ -45,13 +48,9 @@
     var seed = opts.seed != null ? opts.seed : (Math.random() * 4294967296) >>> 0;
     var rnd = mulberry32(seed);
 
-    // Tutorial gondola dapat umur panjang supaya aman; sisanya acak.
-    var pool = shuffle(BASE_LIVES, rnd);
-    var longOnes = pool.filter(function (v) { return v >= 740; });
-    var tutLife = longOnes[Math.floor(rnd() * longOnes.length)];
-    pool.splice(pool.indexOf(tutLife), 1);
-    // satu nilai dibuang karena DYING memakai umur tetap
-    pool.pop();
+    // Tutorial gondola dapat umur panjang supaya aman; DYING memakai umur tetap; 10 gondola sisanya memakai MID_LIVES (acak).
+    var pool = shuffle(MID_LIVES, rnd);
+    var tutLife = TUT_LIVES[Math.floor(rnd() * TUT_LIVES.length)];
 
     var sc = opts.lifeScale != null ? opts.lifeScale : LIFE_SCALE;
     var lives = [];
