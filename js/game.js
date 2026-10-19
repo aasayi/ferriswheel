@@ -164,10 +164,33 @@
     S.wheel.resetAll(); S.wheel.setMode('spin');
   }
 
+  /* ---------------- leaderboard (hanya admin) ---------------- */
+  var boardTok = 0;
+  function paintAdmin() {
+    var on = Api.isAdmin;
+    Array.prototype.forEach.call(document.querySelectorAll('.admin-lb'), function (b) { b.classList.toggle('hidden', !on); });
+    if (!on) { boardTok++; UI.board.close(); }
+  }
+  async function loadBoard() {
+    var tok = ++boardTok;
+    UI.board.loading();
+    try {
+      var res = await Api.leaderboard();
+      if (tok !== boardTok || !UI.board.isOpen()) return;
+      UI.board.render(res.rows, res.demo);
+    } catch (e) {
+      if (tok !== boardTok || !UI.board.isOpen()) return;
+      UI.board.error((e && e.message) || 'Gagal memuat leaderboard.');
+    }
+  }
+  function openBoard() { if (!Api.isAdmin) return; Au.unlock(); Au.tap(); UI.board.open(); loadBoard(); }
+  function closeBoard() { boardTok++; Au.tap(); UI.board.close(); }
+
   function toLogin() {
     S.token++;
     UI.dialog.cancel();
     Api.logout();
+    paintAdmin();
     S.phase = 'login';
     UI.ride.stop();
     UI.showScreen('login');
@@ -377,6 +400,7 @@
       try {
         var u = await Api.login(inName.value, inDob.value);
         UI.setName(u.name);
+        paintAdmin();
         if (u.final) showEnding(u.final); else showTitle();
       } catch (ex) {
         setText('loginErr', ex.message || 'Login gagal.');
@@ -404,7 +428,15 @@
       b.classList.toggle('hidden', n.state !== 'bad');
     });
     $('puzClose').addEventListener('click', function () { if (S.closeCb) S.closeCb(); });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && S.closeCb) S.closeCb(); });
+    Array.prototype.forEach.call(document.querySelectorAll('.admin-lb'), function (b) { b.addEventListener('click', openBoard); });
+    $('lbClose').addEventListener('click', closeBoard);
+    $('lbBack').addEventListener('click', closeBoard);
+    $('lbRefresh').addEventListener('click', function () { Au.tap(); loadBoard(); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      if (UI.board.isOpen()) { closeBoard(); return; }
+      if (S.closeCb) S.closeCb();
+    });
 
     var sb = $('btnSound');
     function paintSound() { var m = Au.isMuted(); sb.setAttribute('aria-pressed', m ? 'false' : 'true'); sb.classList.toggle('muted', m); }

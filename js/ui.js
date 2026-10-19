@@ -431,6 +431,55 @@
     }
   };
 
+  /* ---------------- leaderboard (khusus admin) ---------------- */
+  function fmtDur(ms) {
+    var s = Math.max(0, Math.round((+ms || 0) / 1000)), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60;
+    return (h ? h + ':' + pad2(m) : pad2(m)) + ':' + pad2(x);
+  }
+  function lbMsg(text, cls) {
+    var l = $('lbList'); l.textContent = '';
+    var p = document.createElement('p'); p.className = 'lb-empty' + (cls ? ' ' + cls : ''); p.textContent = text; l.appendChild(p);
+  }
+  var board = {
+    isOpen: function () { var e = $('screen-lb'); return !!e && !e.classList.contains('hidden'); },
+    open: function () {
+      var e = $('screen-lb');
+      app.dataset.lb = 'open';       // layar di belakang (title / tiket / game over) disembunyikan lewat CSS selama papan terbuka
+      e.classList.remove('hidden'); e.classList.remove('enter'); void e.offsetWidth; e.classList.add('enter');
+      $('lbErr').textContent = '';
+    },
+    close: function () { var e = $('screen-lb'); if (app) app.dataset.lb = 'closed'; if (e) e.classList.add('hidden'); },
+    loading: function () {
+      $('lbErr').textContent = ''; $('lbSub').textContent = 'Memuat...';
+      $('lbRefresh').disabled = true;
+      lbMsg('Memuat leaderboard...');
+    },
+    error: function (text) {
+      $('lbRefresh').disabled = false; $('lbSub').textContent = '';
+      lbMsg('Leaderboard belum bisa dimuat.', 'bad'); $('lbErr').textContent = text || '';
+    },
+    /** rows: [{ name, result: 'win'|'lose', ms }] sudah terurut dari server. Yang menang diberi peringkat, yang gagal "failed". */
+    render: function (rows, demo) {
+      $('lbRefresh').disabled = false; $('lbErr').textContent = '';
+      var list = $('lbList'); list.textContent = '';
+      var wins = 0, fails = 0;
+      rows.forEach(function (r) {
+        var win = r.result === 'win';
+        if (win) wins++; else fails++;
+        var row = document.createElement('div'); row.className = 'lb-row ' + (win ? 'win' : 'lose') + (win && wins <= 3 ? ' top top' + wins : ''); row.setAttribute('role', 'listitem');
+        var rk = document.createElement('span'); rk.className = 'lb-rank'; rk.textContent = win ? String(wins) : '-';
+        var nm = document.createElement('span'); nm.className = 'lb-name'; nm.textContent = r.name || '?';
+        var tm = document.createElement('span'); tm.className = 'lb-time'; tm.textContent = win ? fmtDur(r.ms) : 'failed';
+        row.appendChild(rk); row.appendChild(nm); row.appendChild(tm);
+        list.appendChild(row);
+      });
+      if (!rows.length) lbMsg('Belum ada yang menyelesaikan permainan.');
+      $('lbSub').textContent = rows.length
+        ? wins + ' menang, ' + fails + ' failed' + (demo ? ' (contoh data mode demo)' : '')
+        : (demo ? 'Contoh data mode demo' : '');
+    }
+  };
+
   function init() {
     app = $('app');
     buildSky();
@@ -441,6 +490,6 @@
   root.KTLO.UI = {
     $: $, init: init, showScreen: showScreen, setPhase: setPhase, setName: setName,
     dialog: { say: say, show: dialogShow, hide: dialogHide, cancel: function () { if (dlgPending) dlgPending.cancel(); } },
-    hint: hint, toast: toast, hud: hud, modal: modal, ride: ride, ticket: ticket, buildRide: buildRide
+    hint: hint, toast: toast, hud: hud, modal: modal, ride: ride, ticket: ticket, buildRide: buildRide, board: board, fmtDur: fmtDur
   };
 })(typeof window !== 'undefined' ? window : globalThis);

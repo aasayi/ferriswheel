@@ -12,7 +12,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Pixelify+Sans:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="css/style.css">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='12' fill='none' stroke='%23F76A9B' stroke-width='3'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%23FEF7C5'/%3E%3Cpath d='M16 4v24M4 16h24M7.5 7.5l17 17M24.5 7.5l-17 17' stroke='%23FEF7C5' stroke-width='1.4'/%3E%3C/svg%3E">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 </head>
 <body>
 <div id="app" class="app" data-phase="login" data-dialog="closed">
@@ -41,8 +42,9 @@
 
   <!-- Dialog + karakter -->
   <div id="dialog" class="dialog hidden">
-    <img id="char" class="char" src="assets/char.png" alt="Asayi" draggable="false">
     <div id="dlgBox" class="dlg-box card" role="button" tabindex="0" aria-label="Lanjutkan dialog">
+      <!-- Karakter menempel di tepi atas box (kanan atas), jadi ikut naik kalau box membesar. -->
+      <div class="char-wrap" aria-hidden="true"><img id="char" class="char" src="assets/char.png" alt="" draggable="false"></div>
       <div class="nametag">Asayi</div>
       <p id="dlgText" class="dlg-text" aria-live="polite"></p>
       <div class="dlg-foot"><span id="dlgBtn" class="dlg-next">Lanjut</span></div>
@@ -103,7 +105,28 @@
       <p class="sub">Antrian bianglala sudah menunggu.</p>
       <p id="titleErr" class="err" role="alert"></p>
       <button id="playBtn" class="btn" type="button">Masuk antrian</button>
+      <button class="btn ghost admin-lb hidden" type="button">Leaderboard</button>
       <button id="logoutBtn" class="btn ghost" type="button">Ganti akun</button>
+    </div>
+  </section>
+
+  <!-- Leaderboard (hanya admin; tombolnya .admin-lb muncul kalau server bilang akun ini admin) -->
+  <section id="screen-lb" class="screen dim hidden" aria-label="Leaderboard">
+    <div class="card panel lb" role="dialog" aria-modal="true" aria-labelledby="lbTitle">
+      <div class="lb-head">
+        <h2 id="lbTitle" class="h2">Leaderboard</h2>
+        <button id="lbClose" class="iconbtn light" type="button" aria-label="Tutup leaderboard">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke-width="3" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <p id="lbSub" class="lb-sub"></p>
+      <div class="lb-cols" aria-hidden="true"><span>#</span><span>Username</span><span>Durasi</span></div>
+      <div id="lbList" class="lb-list" role="list" aria-live="polite"></div>
+      <p id="lbErr" class="err" role="alert"></p>
+      <div class="row">
+        <button id="lbRefresh" class="btn small ghost" type="button">Segarkan</button>
+        <button id="lbBack" class="btn small" type="button">Kembali</button>
+      </div>
     </div>
   </section>
 
@@ -114,6 +137,7 @@
       <h2 class="h2">Semua lampu padam</h2>
       <p class="sub">Bianglalanya berhenti total. Kamu terlalu lama membiarkan baterainya habis.</p>
       <button id="retryBtn" class="btn" type="button">Coba lagi</button>
+      <button class="btn ghost admin-lb hidden" type="button">Leaderboard</button>
       <button id="overExitBtn" class="btn ghost" type="button">Keluar</button>
     </div>
   </section>
@@ -153,6 +177,7 @@
     <button id="retrySave" class="btn small ghost hidden" type="button">Kirim ulang hasil</button>
     <div class="row">
       <button id="againBtn" class="btn" type="button">Main lagi</button>
+      <button class="btn ghost admin-lb hidden" type="button">Leaderboard</button>
       <button id="ticketExitBtn" class="btn ghost" type="button">Keluar</button>
     </div>
   </section>

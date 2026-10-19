@@ -10,5 +10,6 @@ window.KTLO_CONFIG = {
   supabaseAnonKey: "sb_publishable_2Gm6bVC8KbUkmID8IiqsGQ_3MBf6yTJ",
   rpcLogin: "ktlo_login",
   rpcStart: "ktlo_start_run",
-  rpcFinish: "ktlo_finish_run"
+  rpcFinish: "ktlo_finish_run",
+  rpcLeaderboard: "ktlo_leaderboard"
 };
