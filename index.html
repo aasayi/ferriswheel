@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1b2160">
+<title>Ferris Wheel: Keep The Lights On</title>
+<meta name="description" content="Side game taman hiburan: jaga lampu bianglala tetap menyala.">
+
+<!-- Font dimuat dari assets/fonts/ (lihat css/style.css). Bagel Fat One dan Pixelify Sans hanya cadangan kalau file font gagal dimuat. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Pixelify+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='12' fill='none' stroke='%23F76A9B' stroke-width='3'/%3E%3Ccircle cx='16' cy='16' r='3' fill='%23FEF7C5'/%3E%3Cpath d='M16 4v24M4 16h24M7.5 7.5l17 17M24.5 7.5l-17 17' stroke='%23FEF7C5' stroke-width='1.4'/%3E%3C/svg%3E">
+</head>
+<body>
+<div id="app" class="app" data-phase="login" data-dialog="closed">
+
+  <div id="sky" aria-hidden="true"></div>
+
+  <main id="scene">
+    <svg id="wheel" viewBox="0 0 400 480" preserveAspectRatio="xMidYMid meet" role="group" aria-label="Bianglala dengan 12 gondola"></svg>
+  </main>
+
+  <!-- HUD -->
+  <div id="hud" class="hud hidden">
+    <div class="pill" id="litPill" aria-live="polite">
+      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path class="bulb-glass" d="M12 3a6.5 6.5 0 0 0-3.6 11.9c.7.5 1.1 1.2 1.1 2V18h5v-1.1c0-.8.4-1.5 1.1-2A6.5 6.5 0 0 0 12 3z"/><rect x="9.5" y="19" width="5" height="2.4" rx="1.2"/></svg>
+      <span id="litText">0/12</span>
+    </div>
+    <div class="hud-right">
+      <button id="btnSound" class="iconbtn" type="button" aria-label="Suara" aria-pressed="true">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path class="spk" d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z"/><path class="wave" d="M15 9a4.2 4.2 0 0 1 0 6M17.4 6.6a7.6 7.6 0 0 1 0 10.8" fill="none" stroke-width="2" stroke-linecap="round"/><path class="mute" d="M15.5 9.5l5 5M20.5 9.5l-5 5" fill="none" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div id="hint" class="hint hidden" aria-live="polite"></div>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <!-- Dialog + karakter -->
+  <div id="dialog" class="dialog hidden">
+    <img id="char" class="char" src="assets/char.png" alt="Asayi" draggable="false">
+    <div id="dlgBox" class="dlg-box card" role="button" tabindex="0" aria-label="Lanjutkan dialog">
+      <div class="nametag">Asayi</div>
+      <p id="dlgText" class="dlg-text" aria-live="polite"></p>
+      <div class="dlg-foot"><span id="dlgBtn" class="dlg-next">Lanjut</span></div>
+    </div>
+  </div>
+
+  <!-- Modal puzzle -->
+  <div id="modal" class="modal hidden">
+    <section class="sheet card" role="dialog" aria-modal="true" aria-labelledby="puzTitle">
+      <header class="sheet-head">
+        <span class="gtag" id="puzTag">Gondola 01</span>
+        <h2 id="puzTitle">Sambung Kabel</h2>
+        <button id="puzClose" class="iconbtn light" type="button" aria-label="Tutup puzzle">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke-width="3" stroke-linecap="round"/></svg>
+        </button>
+      </header>
+      <div id="coach" class="coach hidden">
+        <img src="assets/coach.jpg" alt="" class="coach-face" draggable="false">
+        <p id="coachText"></p>
+      </div>
+      <div id="overview" class="overview" aria-label="Status 12 gondola"></div>
+      <div id="puzzleHost" class="puzzle-host"></div>
+    </section>
+  </div>
+
+  <!-- Login -->
+  <section id="screen-login" class="screen">
+    <div class="hero">
+      <h1 class="logo-h"><img class="logo" src="assets/logo.png" alt="Ferris Wheel: Keep The Lights On" draggable="false"></h1>
+    </div>
+    <form id="loginForm" class="card panel" autocomplete="on" novalidate>
+      <label class="field">
+        <span>Username</span>
+        <input id="inName" name="username" type="text" inputmode="text" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="24" placeholder="One-Name" required>
+      </label>
+      <label class="field">
+        <span>Password</span>
+        <div class="pw">
+          <input id="inDob" name="password" type="password" inputmode="numeric" autocomplete="current-password" maxlength="8" placeholder="DDMMYYYY" required>
+          <button id="pwToggle" class="eye" type="button" aria-label="Tampilkan password" aria-pressed="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z" fill="none" stroke-width="2"/><circle cx="12" cy="12" r="3" /></svg>
+          </button>
+        </div>
+      </label>
+      <p id="loginErr" class="err" role="alert"></p>
+      <button id="loginBtn" class="btn" type="submit">Masuk</button>
+      <p id="demoNote" class="demo-note hidden">Mode demo (backend belum tersambung). Login contoh: <b>Asayi</b> / <b>17042006</b></p>
+    </form>
+  </section>
+
+  <!-- Title -->
+  <section id="screen-title" class="screen hidden">
+    <div class="hero">
+      <h1 class="logo-h"><img class="logo" src="assets/logo.png" alt="Ferris Wheel: Keep The Lights On" draggable="false"></h1>
+    </div>
+    <div class="card panel center">
+      <p class="hello">Halo, <strong id="helloName">kamu</strong>!</p>
+      <p class="sub">Antrian bianglala sudah menunggu.</p>
+      <p id="titleErr" class="err" role="alert"></p>
+      <button id="playBtn" class="btn" type="button">Masuk antrian</button>
+      <button id="logoutBtn" class="btn ghost" type="button">Ganti akun</button>
+    </div>
+  </section>
+
+  <!-- Game over -->
+  <section id="screen-over" class="screen dim hidden">
+    <div class="card panel center">
+      <div class="label small" aria-hidden="true">Yah...</div>
+      <h2 class="h2">Semua lampu padam</h2>
+      <p class="sub">Bianglalanya berhenti total. Kamu terlalu lama membiarkan baterainya habis.</p>
+      <button id="retryBtn" class="btn" type="button">Coba lagi</button>
+      <button id="overExitBtn" class="btn ghost" type="button">Keluar</button>
+    </div>
+  </section>
+
+  <!-- Ride -->
+  <section id="screen-ride" class="screen ride hidden" aria-label="Naik gondola">
+    <div id="rideWorld" class="ride-world" aria-hidden="true"></div>
+    <div class="ride-frame" aria-hidden="true">
+      <div class="ride-canopy"></div>
+      <div class="ride-bulb"></div>
+    </div>
+    <p id="rideCaption" class="ride-caption" aria-live="polite"></p>
+  </section>
+
+  <!-- Ticket -->
+  <section id="screen-ticket" class="screen dim hidden">
+    <div class="ticket" id="ticket">
+      <div class="tk-top">
+        <span class="tk-badge">Tiket</span>
+        <span class="tk-no" id="tkNo">KTLO-0000</span>
+      </div>
+      <div class="tk-body">
+        <h2 class="tk-title"><img class="logo tk-logo" src="assets/logo.png" alt="Ferris Wheel: Keep The Lights On" draggable="false"></h2>
+        <p class="tk-line">Petugas sementara</p>
+        <p class="tk-name" id="tkName">onename</p>
+        <p class="tk-done">Berhasil menyelesaikan permainan <b>"Ferris Wheel: Keep The Lights On"</b></p>
+        <div class="tk-stamp" aria-hidden="true">Selesai</div>
+      </div>
+      <div class="tk-cut" aria-hidden="true"></div>
+      <div class="tk-foot">
+        <div class="tk-meta"><span id="tkDate">17 Okt 2026</span><span id="tkTime">21:47</span></div>
+        <div class="tk-bars" id="tkBars" aria-hidden="true"></div>
+      </div>
+    </div>
+    <p class="shot-hint">Screenshot tiket ini sebagai buktimu.</p>
+    <p id="saveNote" class="save-note"></p>
+    <button id="retrySave" class="btn small ghost hidden" type="button">Kirim ulang hasil</button>
+    <div class="row">
+      <button id="againBtn" class="btn" type="button">Main lagi</button>
+      <button id="ticketExitBtn" class="btn ghost" type="button">Keluar</button>
+    </div>
+  </section>
+
+  <div id="devPanel" class="dev hidden"></div>
+</div>
+
+<script src="config.js"></script>
+<script src="js/model.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/api.js"></script>
+<script src="js/wheel.js"></script>
+<script src="js/cable.js"></script>
+<script src="js/simon.js"></script>
+<script src="js/maze.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
