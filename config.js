@@ -6,8 +6,8 @@
  * JANGAN PERNAH menaruh service_role key di sini.
  */
 window.KTLO_CONFIG = {
-  supabaseUrl: "",
-  supabaseAnonKey: "",
+  supabaseUrl: "https://iiqadipjmecwihmunmvw.supabase.co",
+  supabaseAnonKey: "sb_publishable_2Gm6bVC8KbUkmID8IiqsGQ_3MBf6yTJ",
   rpcLogin: "ktlo_login",
   rpcStart: "ktlo_start_run",
   rpcFinish: "ktlo_finish_run"
